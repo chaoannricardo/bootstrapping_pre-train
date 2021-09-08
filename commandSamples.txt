@@ -1,0 +1,2 @@
+# self-supervised
+python pretrain_self.py --output_model_file ./models/xxx1 --data_dir ../KnowledgeGraph_materials/data_kg/bootstrapnet_data/CoNLL/

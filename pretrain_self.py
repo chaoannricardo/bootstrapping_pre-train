@@ -39,7 +39,7 @@ def regist_parser():
     parser.add_argument('--negative_slope', type=float, default=0.2)
     parser.add_argument('--bias', action='store_true')
 
-    parser.add_argument('--device', type=int, default=7)
+    parser.add_argument('--device', type=int, default=0)
     parser.add_argument('--cpu', action='store_true', help='Ignore CUDA.')
     parser.add_argument('--seed', type=int, default=1)
 
