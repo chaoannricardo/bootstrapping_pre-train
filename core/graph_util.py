@@ -11,7 +11,7 @@ def load_node_neighbor(adj, file_path):
     if file_path and os.path.exists(pjoin(file_path, 'node_neighbor.pt')):
         neighbor = torch.load(pjoin(file_path, 'node_neighbor.pt'))
     else:
-        adj = adj.to('cuda:8')
+        adj = adj.to('cuda:0')
         adj = adj > 0
         neighbor = torch.mm(adj.float(), adj.float().t()) > 0
         neighbor, _ = dense_to_sparse(neighbor)
@@ -28,7 +28,7 @@ def load_node_pair(adj, file_path, n_hop=10):
         pos_neighbor = torch.load(pjoin(file_path, 'pos_node_edge.pt'))
         neg_neighbor = torch.load(pjoin(file_path, 'neg_node_edge.pt'))
     else:
-        adj = adj.to('cuda:8')
+        adj = adj.to('cuda:0')
         adj = adj > 0
         neighbor = torch.mm(adj.float(), adj.float().t()) > 0
         size = neighbor.size(1)
@@ -63,7 +63,7 @@ def load_pattern_pair(adj, file_path, n_hop=10):
         pos_mask = torch.load(file_path + '/pos_edge.pt')
         neg_mask = torch.load(file_path + '/neg_edge.pt')
     else:
-        adj = adj.to('cuda:8')
+        adj = adj.to('cuda:0')
         adj = adj > 0
         size = adj.size(1)
 
