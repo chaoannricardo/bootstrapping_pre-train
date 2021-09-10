@@ -16,8 +16,8 @@
 - node_neighbor.pt: Supposed to be model file consist of neighboring nodes
 - p_feature_glove.txt: Supposed to feature embeddings.
 - **pattern_label_vocab.txt: Codes of labels.**
-- **pattern_labels.txt:**
-- **patterns.txt:**
+- **pattern_labels.txt: Patterns (coded).**
+- **patterns.txt: Patterns (text).**
 - pos_edge.pt: Supposed to be model weights of positive edges.
 - pos_node_edge.pt: Supposed to be model weights of positive nodes.
 
