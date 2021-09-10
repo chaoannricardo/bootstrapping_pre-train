@@ -10,7 +10,7 @@
 - **entity_labels.txt: entities (coded) with their relative labels (coded).**
 - graph_data_2_hop.pt: Supposed to be model file.
 - **labels.txt: labels (text).**
-- **links.txt: entities and links (Entity Pattern)**
+- **links.txt: entities and links - Source (Entity) Target (Pattern) **
 - neg_edge.pt: Supposed to be model file consists of negative edges.
 - neg_node_edge.pt: Supposed to be model file consist of negative nodes.
 - node_neighbor.pt: Supposed to be model file consist of neighboring nodes
