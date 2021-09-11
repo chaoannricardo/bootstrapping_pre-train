@@ -96,7 +96,7 @@ class NodeSet(LabeledSet):
 
     def load_node_from_file(self, file_name, node_col, label_col=None,
                             multi_label=False, split='\t'):
-        with open(file_name, 'r') as f:
+        with open(file_name, 'r', encoding="utf8") as f:
             for line in f:
                 items = line.strip().split(split)
                 assert node_col < len(items)
@@ -159,7 +159,7 @@ class EdgeSet(LabeledSet):
                 self.weights.append(weight)
 
     def load_edge_from_file(self, file_name, node_s, col_s, node_t, col_t, col_weight=None, split='\t'):
-        with open(file_name, 'r') as f:
+        with open(file_name, 'r', encoding="utf8") as f:
             for line in f:
                 items = line.strip().split(split)
                 source, target = items[col_s], items[col_t]
