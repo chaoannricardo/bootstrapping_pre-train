@@ -150,3 +150,8 @@ if __name__ == '__main__':
 
     encoder, classifier = fine_tune_encoder(opt, encoder, graph_data, seeds)
     fine_tune_decoder(opt, encoder, decoder, classifier, graph_data, seeds)
+
+    if opt['output_model_file']:
+        print('write model file', opt['output_model_file'], '...')
+        torch.save(encoder.cpu().state_dict(), opt['output_model_file'] + '_encoder.pth')
+        torch.save(decoder.cpu().state_dict(), opt['output_model_file'] + '_decoder.pth')
