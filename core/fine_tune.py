@@ -74,3 +74,4 @@ def fine_tune_decoder(opt, encoder, decoder, classifier, graph_data, seeds,
                       dev_seeds=None):
     update_s(opt, encoder, decoder, classifier, graph_data, seeds, mv_iter=0)
     multi_view_learn(opt, encoder, decoder, classifier, graph_data, seeds)
+    return encoder, decoder
