@@ -9,7 +9,7 @@ from .loss import contrastive_loss
 from .model import LNClassifier
 from .fine_tune_milti_view import update_s, multi_view_learn
 
-
+# https://discuss.pytorch.org/t/check-if-models-have-same-weights/4351/5
 def compare_models(model_1, model_2):
     models_differ = 0
     for key_item_1, key_item_2 in zip(model_1.state_dict().items(), model_2.state_dict().items()):
