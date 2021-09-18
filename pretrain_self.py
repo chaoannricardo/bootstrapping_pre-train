@@ -153,6 +153,8 @@ def edge_mask(opt, encoder, batch, batch_id, ite):
     print('Ite[%d]-Batch[%d]--loss:%.5f, lr:%.7f' %
           (ite, batch_id, total_loss, scheduler.get_last_lr()[0]))
 
+    return classifier
+
 
 if __name__ == '__main__':
     args = regist_parser()
@@ -205,8 +207,9 @@ if __name__ == '__main__':
 
     for ite in range(1, opt['n_epoch'] + 1):
         for i, batch in enumerate(batches):
-            edge_mask(opt, encoder, batch, i+1, ite)
+            calssifier = edge_mask(opt, encoder, batch, i+1, ite)
 
     if opt['output_model_file']:
         print('write model file', opt['output_model_file'], '...')
-        torch.save(encoder.cpu().state_dict(), opt['output_model_file']+'.pth')
+        torch.save(encoder.cpu().state_dict(), opt['output_model_file'] + "_encoder" +'.pth')
+        torch.save(encoder.cpu().state_dict(), opt['output_model_file'] + "_MLPClassifier" + '.pth')
