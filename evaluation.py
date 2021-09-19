@@ -64,7 +64,7 @@ opt_decoder = {'dataset': '../KnowledgeGraph_materials/data_kg/bootstrapnet_data
                'edge_feature_dim': 5}
 
 
-def comprise_data(opt, encoder, weight):
+def comprise_data(opt, encoder, weight, load_classifier=False):
     device = "cpu" if opt["cpu"] else opt['device']
 
     pkl_path = 'graph_' + opt['feature_type'] + '.pkl'
@@ -77,6 +77,11 @@ def comprise_data(opt, encoder, weight):
 
     d_es = graph_data.x[0].size(-1)
     classifier = LNClassifier(d_es * 2, 1)
+
+    if load_classifier:
+        classifier.load_state_dict(torch.load(opt['input_model_file']+'_MLPClassifier.pth'))
+        print("Classifier model file loaded!")
+
     classifier.to(device)
     parameters = [
         {'params': [p for p in encoder.parameters() if p.requires_grad]},
@@ -87,7 +92,6 @@ def comprise_data(opt, encoder, weight):
     warm_step = n_epoch * 0.1
     scheduler = get_linear_schedule_with_warmup(optimizer, warm_step, n_epoch,
                                                 min_ratio=0.1)
-    print('loaded!')
     return classifier, optimizer, scheduler, graph_data, weight
 
 
@@ -123,7 +127,6 @@ def edge_mask_loss(encoder_output, graph_data, masked_indice, classifier):
     neg_edge_index = _negative_sample(graph_data.edge_index, size,
                                       num_neg=masked_indice.size(0))
     es, ps = encoder_output
-    criterion = nn.BCEWithLogitsLoss()
     pos_score = classifier(torch.cat([es[edge_index[0]], ps[edge_index[1]]], dim=-1))
     neg_score = classifier(torch.cat([es[neg_edge_index[0]], ps[neg_edge_index[1]]], dim=-1))
 
@@ -134,12 +137,18 @@ def edge_mask(opt, encoder, batch, batch_id):
     classifier, optimizer, scheduler, data, weight = batch
     encoder.eval()
     pos_score, neg_score = link_mask_pretrain(opt, encoder, classifier, data)
-    pos_score = np.squeeze(pos_score.cpu().detach().numpy())
-    neg_score = np.squeeze(neg_score.cpu().detach().numpy())
+    # pos_score = np.squeeze(pos_score.cpu().detach().numpy())
+    # neg_score = np.squeeze(neg_score.cpu().detach().numpy())
     result_list = []
 
+    criterion = nn.BCEWithLogitsLoss()
+
     for scoreIndex, score in enumerate(pos_score):
-        print(np.abs(score) > np.abs(neg_score[scoreIndex]))
+        pos_loss = criterion(score, torch.ones_like(score))
+        neg_loss = criterion(neg_score[scoreIndex], torch.ones_like(neg_score[scoreIndex]))
+        total_loss = (pos_loss + neg_loss) / 2
+        total_loss = total_loss.cpu().detach().numpy()
+        print(total_loss)
 
 
 def link_mask_pretrain(opt, encoder, classifier, data):
@@ -180,7 +189,7 @@ if __name__ == '__main__':
     batches = []
     for dataset, weight in datasets:
         opt_encoder['dataset'] = os.path.join(opt_encoder['data_dir'], dataset)
-        batches.append(comprise_data(opt_encoder, encoder, weight))
+        batches.append(comprise_data(opt_encoder, encoder, weight, load_classifier=True))
 
     ''' Begin predicting with model '''
     for i, batch in enumerate(batches):
