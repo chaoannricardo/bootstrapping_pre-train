@@ -207,9 +207,9 @@ if __name__ == '__main__':
 
     for ite in range(1, opt['n_epoch'] + 1):
         for i, batch in enumerate(batches):
-            calssifier = edge_mask(opt, encoder, batch, i+1, ite)
+            classifier = edge_mask(opt, encoder, batch, i+1, ite)
 
     if opt['output_model_file']:
         print('write model file', opt['output_model_file'], '...')
         torch.save(encoder.cpu().state_dict(), opt['output_model_file'] + "_encoder" +'.pth')
-        torch.save(encoder.cpu().state_dict(), opt['output_model_file'] + "_MLPClassifier" + '.pth')
+        torch.save(classifier.cpu().state_dict(), opt['output_model_file'] + "_MLPClassifier" + '.pth')
