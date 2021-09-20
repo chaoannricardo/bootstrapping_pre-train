@@ -85,7 +85,7 @@ def print_settings(opt):
     print('==================================================================')
 
 
-def comprise_data(opt, encoder, weight):
+def comprise_data(opt, encoder, weight, load_classifier=False):
     print('loading %s......' % opt['dataset'])
     pkl_path = 'graph_' + opt['feature_type'] + '.pkl'
     graph_data, graph = load_graph(opt, pkl_path, pyg=True)
@@ -96,6 +96,11 @@ def comprise_data(opt, encoder, weight):
                     graph_data.x[1].to(opt['device']))
     d_es = graph_data.x[0].size(-1)
     classifier = LNClassifier(d_es * 2, 1)
+
+    if load_classifier:
+        classifier.load_state_dict(torch.load(opt['input_model_file']+'_MLPClassifier.pth'))
+        print("Classifier model file loaded!")
+
     classifier.to(opt['device'])
     parameters = [
         {'params': [p for p in encoder.parameters() if p.requires_grad]},
@@ -184,7 +189,8 @@ if __name__ == '__main__':
 
     encoder = GBNEncoder(opt)
     if opt['input_model_file']:
-        encoder.load_state_dict(torch.load(opt['input_model_file']+'.pth'))
+        encoder.load_state_dict(torch.load(opt['input_model_file']+'_encoder.pth'))
+
     encoder = encoder.to(opt['device'])
 
     datasets = []
@@ -203,7 +209,7 @@ if __name__ == '__main__':
     batches = []
     for dataset, weight in datasets:
         opt['dataset'] = os.path.join(opt['data_dir'], dataset)
-        batches.append(comprise_data(opt, encoder, weight))
+        batches.append(comprise_data(opt, encoder, weight, load_classifier=True))
 
     for ite in range(1, opt['n_epoch'] + 1):
         for i, batch in enumerate(batches):
