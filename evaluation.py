@@ -11,7 +11,7 @@ import torch.nn as nn
 
 opt_encoder = {'data_dir': '../KnowledgeGraph_materials/data_kg/bootstrapnet_data/boot_pretrain_data_revised/',
        'output_model_file': './models/test',
-       'input_model_file': './models/210914_fineTuned_encoder',
+       'input_model_file': './models/210919_selfSupervised_2',
        'sim_metric': CosSim(),
         'k_hop': 1,
        'nl_weight': 0.01,
@@ -95,6 +95,13 @@ def comprise_data(opt, encoder, weight, load_classifier=False):
     return classifier, optimizer, scheduler, graph_data, weight
 
 
+def sigmoid(x):
+    z = np.exp(-x)
+    sig = 1 / (1 + z)
+
+    return sig
+
+
 def sample(high: int, size: int, device=None):
     size = min(high, size)
     return torch.tensor(random.sample(range(high), size), device=device)
@@ -133,24 +140,6 @@ def edge_mask_loss(encoder_output, graph_data, masked_indice, classifier):
     return pos_score, neg_score
 
 
-def edge_mask(opt, encoder, batch, batch_id):
-    classifier, optimizer, scheduler, data, weight = batch
-    encoder.eval()
-    pos_score, neg_score = link_mask_pretrain(opt, encoder, classifier, data)
-    # pos_score = np.squeeze(pos_score.cpu().detach().numpy())
-    # neg_score = np.squeeze(neg_score.cpu().detach().numpy())
-    result_list = []
-
-    criterion = nn.BCEWithLogitsLoss()
-
-    for scoreIndex, score in enumerate(pos_score):
-        pos_loss = criterion(score, torch.ones_like(score))
-        neg_loss = criterion(neg_score[scoreIndex], torch.ones_like(neg_score[scoreIndex]))
-        total_loss = (pos_loss + neg_loss) / 2
-        total_loss = total_loss.cpu().detach().numpy()
-        print(total_loss)
-
-
 def link_mask_pretrain(opt, encoder, classifier, data):
     x = data.x
     edge_attr = data.edge_attr
@@ -165,11 +154,34 @@ def link_mask_pretrain(opt, encoder, classifier, data):
     return pos_score, neg_score
 
 
+def edge_mask(opt, encoder, batch, batch_id):
+    classifier, optimizer, scheduler, data, weight = batch
+
+    # activate evaluation mode
+    encoder.eval()
+    classifier.eval()
+
+    pos_score, neg_score = link_mask_pretrain(opt, encoder, classifier, data)
+
+    criterion = nn.BCEWithLogitsLoss()
+
+    for scoreIndex, score in enumerate(pos_score):
+        print(score, neg_score[scoreIndex])
+        # pos_loss = criterion(score, torch.ones_like(score))
+        # neg_loss = criterion(neg_score[scoreIndex], torch.ones_like(neg_score[scoreIndex]))
+        # total_loss = (pos_loss + neg_loss) / 2
+        # total_loss = total_loss.cpu().detach().numpy()
+        # print("total loss", total_loss, "pos_loss", pos_loss, "neg_loss", neg_loss, "pos score", score, "neg score", neg_score[scoreIndex])
+        # prob = sigmoid(score.detach().numpy())
+        # if ((prob < 0 or prob > 1)):
+        #     print("hi")
+
+
 if __name__ == '__main__':
     ''' Load models '''
     # https://pytorch.org/tutorials/beginner/saving_loading_models.html
     encoder = GBNEncoder(opt_encoder)
-    encoder.load_state_dict(torch.load(opt_encoder['input_model_file'] + '.pth'))
+    encoder.load_state_dict(torch.load(opt_encoder['input_model_file'] + '_encoder.pth'))
     decoder = GBNDecoder(opt_decoder, opt_decoder['sim_metric'])
     decoder.load_state_dict(torch.load(opt_decoder['input_model_file'] + '.pth'))
 
