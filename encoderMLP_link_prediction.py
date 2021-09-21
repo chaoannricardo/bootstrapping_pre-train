@@ -38,8 +38,11 @@ opt_encoder = {
 
 
 def comprise_data(opt, encoder, weight, load_classifier=False):
+
     ''' setting device '''
+
     device_encoder = "cpu"
+
     if not opt["cpu"]:
         device_encoder = opt['device']
 
@@ -73,48 +76,27 @@ def comprise_data(opt, encoder, weight, load_classifier=False):
     return classifier, optimizer, scheduler, graph_data, weight
 
 
-def edge_mask_loss(encoder_output, graph_data, masked_indice, classifier):
+def edge_mask_prediction(encoder_output, graph_data, masked_indice, classifier):
     edge_index = graph_data.edge_index
     edge_index = edge_index[:, masked_indice]
     size = (graph_data.x[0].size(0), graph_data.x[1].size(0))
-    neg_edge_index = _negative_sample(graph_data.edge_index, size,
-                                      num_neg=masked_indice.size(0))
+
     es, ps = encoder_output
 
-    criterion = nn.BCEWithLogitsLoss()
     pos_score = classifier(torch.cat([es[edge_index[0]], ps[edge_index[1]]], dim=-1))
 
-    neg_score = classifier(torch.cat([es[neg_edge_index[0]], ps[neg_edge_index[1]]], dim=-1))
-
-    df_prob = pd.DataFrame(columns=["LinkIndice", "Probability"])
+    df_prob = pd.DataFrame(columns=["MaskedIndex", "Source", "Target", "Probability"])
 
     for scoreIndex, score in enumerate(tqdm(pos_score)):
         indice = masked_indice[scoreIndex].detach().numpy()
+        source = edge_index[0][scoreIndex].detach().numpy()
+        target = edge_index[1][scoreIndex].detach().numpy()
         probability = score.detach().numpy()[0]
-        df_prob.loc[len(df_prob)] = [indice, probability]
+        df_prob.loc[len(df_prob)] = [indice, source, target, probability]
 
-    df_prob = df_prob.sort_values(by=["LinkIndice"], ascending=True)
+    df_prob = df_prob.sort_values(by=["MaskedIndex"], ascending=True)
     df_prob.to_csv("./outputs/" + opt_encoder["input_model_file"].split("/")[-1] + "_linkPrediction.csv", sep=",",
                    encoding="utf8", index=False)
-
-
-def _negative_sample(edge_index, size, num_neg):
-    # Handle '|V|^2 - |E| < |E|'.
-    count = size[0] * size[1]
-    num_neg = min(num_neg, count - edge_index.size(1))
-
-    row, col = edge_index
-    idx = row * size[1] + col
-
-    alpha = 1 / (1 - 1.2 * (edge_index.size(1) / count))
-
-    perm = sample(count, int(alpha * num_neg))
-    mask = torch.from_numpy(np.isin(perm, idx.to('cpu'))).to(torch.bool)
-    perm = perm[~mask][:num_neg].to(edge_index.device)
-    row = perm // size[1]
-    col = perm % size[1]
-    neg_edge_index = torch.stack([row, col], dim=0)
-    return neg_edge_index
 
 
 def sample(high: int, size: int, device=None):
@@ -137,9 +119,7 @@ def link_mask_pretrain(opt, encoder, classifier, data):
 
     output = encoder(x, edge_index[:, remain_indices],
                      edge_attr[remain_indices])
-    loss = edge_mask_loss(output, data, masked_indices, classifier)
-
-    return loss
+    edge_mask_prediction(output, data, masked_indices, classifier)
 
 
 def edge_mask(opt, encoder, batch, batch_id, ite):
@@ -149,19 +129,7 @@ def edge_mask(opt, encoder, batch, batch_id, ite):
     for i in range(weight):
         encoder.train()
         optimizer.zero_grad()
-        loss_nl = neighbor_learning_pretrain(opt, encoder, data)
-        loss_lm = link_mask_pretrain(opt, encoder, classifier, data)
-        loss = (loss_nl + loss_lm) / weight
-        loss.backward()
-        # nn.utils.clip_grad_norm_(encoder.parameters(), opt['max_grad_norm'])
-        # nn.utils.clip_grad_norm_(classifier.parameters(), opt['max_grad_norm'])
-        optimizer.step()
-        scheduler.step()
-        total_loss += loss.item()
-    print('Ite[%d]-Batch[%d]--loss:%.5f, lr:%.7f' %
-          (ite, batch_id, total_loss, scheduler.get_last_lr()[0]))
-
-    return classifier
+        link_mask_pretrain(opt, encoder, classifier, data)
 
 
 if __name__ == '__main__':
@@ -170,7 +138,7 @@ if __name__ == '__main__':
     if not opt_encoder["cpu"]:
         device_encoder = opt_encoder['device']
 
-    ''' Load models '''
+    ''' Load encoder '''
     # https://pytorch.org/tutorials/beginner/saving_loading_models.html
     encoder = GBNEncoder(opt_encoder)
     encoder.load_state_dict(torch.load(opt_encoder['input_model_file'] + '_encoder.pth'))
