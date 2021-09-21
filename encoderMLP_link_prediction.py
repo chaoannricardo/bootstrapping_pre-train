@@ -1,37 +1,41 @@
 # -*- coding: utf8 -*-
-from core.model import GBNEncoder, LNClassifier, GBNDecoder
+from core.model import GBNEncoder, LNClassifier, GBNDecoder, LNClassifier_sigmoid
 from core.sim_metric import EDSim, SDPSim, CosSim
 from core.util import get_optimizer, get_linear_schedule_with_warmup
 from core.dataloader import load_graph
 from torch_scatter import scatter_sum
+from tqdm import tqdm
 import numpy as np
 import os
+import pandas as pd
 import random
 import torch
 import torch.nn as nn
 
-opt_encoder = {'data_dir': '../KnowledgeGraph_materials/data_kg/bootstrapnet_data/boot_pretrain_data_revised/',
-       'output_model_file': './models/test',
-       'input_model_file': './models/210919_selfSupervised_2',
-       'sim_metric': CosSim(),
-        'k_hop': 1,
-       'nl_weight': 0.01,
-       'local': False,
-       'n_layer': 3,
-       'dropout': 0.1,
-       'negative_slope': 0.2,
-       'bias': False,
-       'device': torch.device(type='cuda', index=0),
-       'cpu': True,
-       'seed': 1,
-       'n_epoch': 100,
-       'optimizer': 'adam',
-       'lr': 0.001,
-       'decay': 0.001,
-       'max_grad_norm': 1.0,
-       'feature_type': 'random',
-       'feature_dim': 50,
-       'edge_feature_dim': 5}
+
+opt_encoder = {
+    'data_dir': '../KnowledgeGraph_materials/data_kg/bootstrapnet_data/boot_pretrain_data_revised/',
+    'input_model_file': './models/210919_selfSupervised_2',
+    'sim_metric': CosSim(),
+    'k_hop': 1,
+    'nl_weight': 0.01,
+    'local': False,
+    'n_layer': 3,
+    'dropout': 0.1,
+    'negative_slope': 0.2,
+    'bias': False,
+    'device': torch.device(type='cuda', index=0),
+    'cpu': True,
+    'seed': 1,
+    'n_epoch': 100,
+    'optimizer': 'adam',
+    'lr': 0.001,
+    'decay': 0.001,
+    'max_grad_norm': 1.0,
+    'feature_type': 'random',
+    'feature_dim': 50,
+    'edge_feature_dim': 5}
+
 
 opt_decoder = {'dataset': '../KnowledgeGraph_materials/data_kg/bootstrapnet_data/boot_pretrain_data/gum_train/',
                'input_model_file': './models/210914_fineTuned_decoder',
@@ -80,10 +84,10 @@ def comprise_data(opt, encoder, weight, load_classifier=False):
     graph_data.x = (graph_data.x[0].to(device_encoder),
                     graph_data.x[1].to(device_encoder))
     d_es = graph_data.x[0].size(-1)
-    classifier = LNClassifier(d_es * 2, 1)
+    classifier = LNClassifier_sigmoid(d_es * 2, 1)
 
     if load_classifier:
-        classifier.load_state_dict(torch.load(opt['input_model_file']+'_MLPClassifier.pth'))
+        classifier.load_state_dict(torch.load(opt['input_model_file'] + '_MLPClassifier.pth'))
         print("Classifier model file loaded!")
 
     classifier.to(device_encoder)
@@ -150,12 +154,26 @@ def edge_mask_loss(encoder_output, graph_data, masked_indice, classifier):
     neg_edge_index = _negative_sample(graph_data.edge_index, size,
                                       num_neg=masked_indice.size(0))
     es, ps = encoder_output
+
     criterion = nn.BCEWithLogitsLoss()
     pos_score = classifier(torch.cat([es[edge_index[0]], ps[edge_index[1]]], dim=-1))
+
     neg_score = classifier(torch.cat([es[neg_edge_index[0]], ps[neg_edge_index[1]]], dim=-1))
     loss = criterion(pos_score, torch.ones_like(pos_score)) + \
-        criterion(neg_score, torch.zeros_like(neg_score))
+           criterion(neg_score, torch.zeros_like(neg_score))
     loss = loss / 2
+
+    df_prob = pd.DataFrame(columns=["LinkIndice", "Probability"])
+
+    for scoreIndex, score in enumerate(tqdm(pos_score)):
+        indice = masked_indice[scoreIndex].detach().numpy()
+        probability = score.detach().numpy()[0]
+        df_prob.loc[len(df_prob)] = [indice, probability]
+
+    df_prob = df_prob.sort_values(by=["LinkIndice"], ascending=True)
+    df_prob.to_csv("./outputs/" + opt_encoder["input_model_file"].split("/")[-1] + "_linkPrediction.csv", sep=",",
+                   encoding="utf8", index=False)
+
     return loss
 
 
@@ -188,15 +206,18 @@ def link_mask_pretrain(opt, encoder, classifier, data):
     edge_attr = data.edge_attr
     edge_index = data.edge_index
     edge_size = edge_index.size(1)
-    neg_size = int(edge_size * 0.1)
+    neg_size = int(edge_size * 0.99)
 
     indices = torch.randperm(edge_size, device=edge_index.device)
     masked_indices = indices[:neg_size]
     remain_indices = indices[neg_size:]
+    remain_indices = indices
+    masked_indices = indices
 
     output = encoder(x, edge_index[:, remain_indices],
                      edge_attr[remain_indices])
     loss = edge_mask_loss(output, data, masked_indices, classifier)
+
     return loss
 
 
@@ -252,9 +273,9 @@ if __name__ == '__main__':
         batches.append(comprise_data(opt_encoder, encoder, weight, load_classifier=True))
 
     ''' Begin predicting with model '''
-    # for i, batch in enumerate(batches):
-    #     edge_mask(opt_encoder, encoder, batch, i + 1)
+    for i, batch in enumerate(batches):
+        edge_mask(opt_encoder, encoder, batch, i + 1, 1)
 
-    for ite in range(1, opt_encoder['n_epoch'] + 1):
-        for i, batch in enumerate(batches):
-            classifier = edge_mask(opt_encoder, encoder, batch, i+1, ite)
+    # for ite in range(1, opt_encoder['n_epoch'] + 1):
+    #     for i, batch in enumerate(batches):
+    #         classifier = edge_mask(opt_encoder, encoder, batch, i+1, ite)
