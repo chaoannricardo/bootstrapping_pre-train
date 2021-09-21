@@ -209,7 +209,7 @@ if __name__ == '__main__':
     batches = []
     for dataset, weight in datasets:
         opt['dataset'] = os.path.join(opt['data_dir'], dataset)
-        batches.append(comprise_data(opt, encoder, weight, load_classifier=True))
+        batches.append(comprise_data(opt, encoder, weight, load_classifier=opt['input_model_file']))
 
     for ite in range(1, opt['n_epoch'] + 1):
         for i, batch in enumerate(batches):
