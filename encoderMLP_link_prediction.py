@@ -37,38 +37,6 @@ opt_encoder = {
     'edge_feature_dim': 5}
 
 
-opt_decoder = {'dataset': '../KnowledgeGraph_materials/data_kg/bootstrapnet_data/boot_pretrain_data/gum_train/',
-               'input_model_file': './models/210914_fineTuned_decoder',
-               'output_model_file': '',
-               'method': 'multi_view',
-               'sim_metric': 'cos',
-               'n_iter': 20,
-               'min_match': 1,
-               'n_expansion': 10,
-               'k_hop': 2,
-               'un_weight': 0.01,
-               'local': False,
-               'mean_updated': False,
-               'n_layer': 3,
-               'dropout': 0.1,
-               'negative_slope': 0.2,
-               'bias': False,
-               'device': torch.device(type='cuda', index=0),
-               'cpu': True,
-               'seed': 1,
-               'init_encoder_epoch': 200,
-               'init_decoder_epoch': 200,
-               'encoder_epoch': 50,
-               'decoder_epoch': 50,
-               'optimizer': 'adam',
-               'lr': 0.001,
-               'decay': 0.001,
-               'max_grad_norm': 1.0,
-               'feature_type': 'glove',
-               'feature_dim': 50,
-               'edge_feature_dim': 5}
-
-
 def comprise_data(opt, encoder, weight, load_classifier=False):
     ''' setting device '''
     device_encoder = "cpu"
@@ -105,48 +73,6 @@ def comprise_data(opt, encoder, weight, load_classifier=False):
     return classifier, optimizer, scheduler, graph_data, weight
 
 
-def contrastive_loss(encoder_output, graph_data, sim_metric):
-    es, ps = encoder_output
-    e_size = graph_data.x[0].size(0)
-
-    ee_pos = graph_data.node_pos_index
-    ee_neg = _contrastive_sample(ee_pos.size(1), graph_data.node_neg_index)
-    ep_pos = graph_data.edge_pos_index
-    ep_neg = _contrastive_sample(ep_pos.size(1), graph_data.edge_neg_index)
-
-    ep1, ep2 = es.index_select(0, ee_pos[0]), es.index_select(0, ee_pos[1])
-    link_sim = sim_metric(ep1, ep2, flatten=True, method='exp')
-    en1, en2 = es.index_select(0, ee_neg[0]), es.index_select(0, ee_neg[1])
-    non_sim = sim_metric(en1, en2, flatten=True, method='exp')
-    pp1, pp2 = es.index_select(0, ep_pos[0]), ps.index_select(0, ep_pos[1])
-    pos_sim = sim_metric(pp1, pp2, flatten=True, method='exp')
-    pn1, pn2 = es.index_select(0, ep_neg[0]), ps.index_select(0, ep_neg[1])
-    neg_sim = sim_metric(pn1, pn2, flatten=True, method='exp')
-
-    en_sum = scatter_sum(non_sim, ee_neg[0], dim=-1, dim_size=e_size)
-    link_loss = link_sim / (link_sim + en_sum.index_select(0, ee_pos[0]))
-    ep_sum = scatter_sum(neg_sim, ep_neg[0], dim=-1, dim_size=e_size)
-    ep_loss = pos_sim / (pos_sim + ep_sum.index_select(0, ep_pos[0]))
-
-    loss = torch.cat([-link_loss.log(), -ep_loss.log()], dim=-1).mean()
-    return loss
-
-
-def _contrastive_sample(pos_size, neg_index):
-    # limited by the GPU memory, we randomly sample some neg-neighbors
-    neg_size = pos_size * 5
-    indices = torch.randperm(neg_index.size(1), device=neg_index.device)[:neg_size]
-    neg_sample = neg_index[:, indices]
-    return neg_sample
-
-
-def neighbor_learning_pretrain(opt, encoder, data):
-    sim_metric = opt['sim_metric']
-    es, ps = encoder(data)
-    loss = opt['nl_weight'] * contrastive_loss((es, ps), data, sim_metric)
-    return loss
-
-
 def edge_mask_loss(encoder_output, graph_data, masked_indice, classifier):
     edge_index = graph_data.edge_index
     edge_index = edge_index[:, masked_indice]
@@ -159,9 +85,6 @@ def edge_mask_loss(encoder_output, graph_data, masked_indice, classifier):
     pos_score = classifier(torch.cat([es[edge_index[0]], ps[edge_index[1]]], dim=-1))
 
     neg_score = classifier(torch.cat([es[neg_edge_index[0]], ps[neg_edge_index[1]]], dim=-1))
-    loss = criterion(pos_score, torch.ones_like(pos_score)) + \
-           criterion(neg_score, torch.zeros_like(neg_score))
-    loss = loss / 2
 
     df_prob = pd.DataFrame(columns=["LinkIndice", "Probability"])
 
@@ -173,8 +96,6 @@ def edge_mask_loss(encoder_output, graph_data, masked_indice, classifier):
     df_prob = df_prob.sort_values(by=["LinkIndice"], ascending=True)
     df_prob.to_csv("./outputs/" + opt_encoder["input_model_file"].split("/")[-1] + "_linkPrediction.csv", sep=",",
                    encoding="utf8", index=False)
-
-    return loss
 
 
 def _negative_sample(edge_index, size, num_neg):
@@ -275,7 +196,3 @@ if __name__ == '__main__':
     ''' Begin predicting with model '''
     for i, batch in enumerate(batches):
         edge_mask(opt_encoder, encoder, batch, i + 1, 1)
-
-    # for ite in range(1, opt_encoder['n_epoch'] + 1):
-    #     for i, batch in enumerate(batches):
-    #         classifier = edge_mask(opt_encoder, encoder, batch, i+1, ite)
