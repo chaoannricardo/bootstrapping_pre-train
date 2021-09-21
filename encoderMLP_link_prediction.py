@@ -40,13 +40,13 @@ opt_encoder = {
 def comprise_data(opt, encoder, weight, load_classifier=False):
 
     ''' setting device '''
-
     device_encoder = "cpu"
 
     if not opt["cpu"]:
         device_encoder = opt['device']
 
     print('loading %s......' % opt['dataset'])
+
     pkl_path = 'graph_' + opt['feature_type'] + '.pkl'
     graph_data, graph = load_graph(opt, pkl_path, pyg=True)
     opt['n_class'] = len(graph.node_s.itol)
@@ -62,18 +62,10 @@ def comprise_data(opt, encoder, weight, load_classifier=False):
         print("Classifier model file loaded!")
 
     classifier.to(device_encoder)
+    classifier.eval()
 
-    parameters = [
-        {'params': [p for p in encoder.parameters() if p.requires_grad]},
-        {'params': [p for p in classifier.parameters() if p.requires_grad]}]
-    optimizer = get_optimizer(opt['optimizer'], parameters,
-                              opt['lr'], opt['decay'])
-    n_epoch = opt['n_epoch'] * weight
-    warm_step = n_epoch * 0.1
-    scheduler = get_linear_schedule_with_warmup(optimizer, warm_step, n_epoch,
-                                                min_ratio=0.1)
     print('loaded!')
-    return classifier, optimizer, scheduler, graph_data, weight
+    return classifier, graph_data, weight
 
 
 def edge_mask_prediction(encoder_output, graph_data, masked_indice, classifier):
@@ -99,11 +91,6 @@ def edge_mask_prediction(encoder_output, graph_data, masked_indice, classifier):
                    encoding="utf8", index=False)
 
 
-def sample(high: int, size: int, device=None):
-    size = min(high, size)
-    return torch.tensor(random.sample(range(high), size), device=device)
-
-
 def link_mask_pretrain(opt, encoder, classifier, data):
     x = data.x
     edge_attr = data.edge_attr
@@ -123,12 +110,10 @@ def link_mask_pretrain(opt, encoder, classifier, data):
 
 
 def edge_mask(opt, encoder, batch, batch_id, ite):
-    classifier, optimizer, scheduler, data, weight = batch
+    classifier, data, weight = batch
 
-    total_loss = 0
     for i in range(weight):
-        encoder.train()
-        optimizer.zero_grad()
+        encoder.eval()
         link_mask_pretrain(opt, encoder, classifier, data)
 
 
