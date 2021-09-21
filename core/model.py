@@ -212,6 +212,18 @@ class LNClassifier(nn.Module):
         return out
 
 
+class LNClassifier_sigmoid(nn.Module):
+    def __init__(self, d_feature, n_class):
+        super(LNClassifier_sigmoid, self).__init__()
+        self.d_feature, self.n_class = d_feature, n_class
+        self.fc = MLP(d_feature, d_feature // 2, n_class)
+
+    def forward(self, x):
+        out = self.fc(x)
+        out = torch.sigmoid(out)
+        return out
+
+
 class NNClassifier(nn.Module):
     def __init__(self, sim_metric):
         super(NNClassifier, self).__init__()
