@@ -15,7 +15,7 @@ python fine_tune.py --input_model_file ./models/210922_supervised --output_model
 
 # KG Dataset
 ```bash
-python pretrain_self.py --output_model_file ./models/210911_KG --data_dir ../KnowledgeGraph_materials/data_kg/baiduDatasetTranditional_GBN/ --feature_type random
+python pretrain_self.py --output_model_file ./models/210911_KG --data_dir ../KnowledgeGraph_materials/data_kg/baiduDatasetTranditional_GBN_wholeNode_dependency/ --feature_type random --cpu
 
 
 ```
