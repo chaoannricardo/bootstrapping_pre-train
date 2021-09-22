@@ -164,7 +164,7 @@ if __name__ == '__main__':
     encoder = GBNEncoder(opt)
     if opt['input_model_file']:
         print('load model file', opt['input_model_file'], '...')
-        encoder.load_state_dict(torch.load(opt['input_model_file']+'.pth'))
+        encoder.load_state_dict(torch.load(opt['input_model_file']+'_encoder.pth'))
     encoder = encoder.to(opt['device'])
 
     print('====================Do Pre-Train (Supervised)=====================')
