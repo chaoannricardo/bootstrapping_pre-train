@@ -11,10 +11,10 @@ import sys
 import torch
 
 K_HOP = 1
-ENCODER_MODEL_PATH = './models/210922_fineTuned_encoder'
-DECODER_MODEL_PATH = './models/210922_fineTuned_decoder'
-OUTPUT_FILE = "./outputs/210922_bootstrapping_result"
-DATA_DIR = '../KnowledgeGraph_materials/data_kg/bootstrapnet_data/boot_pretrain_data_revised/CoNLL/'
+ENCODER_MODEL_PATH = './models/210922_KG_Semiconductor_Filtered_FineTuned_encoder'
+DECODER_MODEL_PATH = './models/210922_KG_Semiconductor_Filtered_FineTuned_decoder'
+OUTPUT_FILE = "./outputs/210923_Semiconductor"
+DATA_DIR = "../KnowledgeGraph_materials/data_kg/baiduDatasetTranditional_GBN_wholeNode_dependency/doc_un_1/"
 FEATURE_TYPE = "random"
 IS_CPU = True
 DEVICE = torch.device(type='cuda', index=0)

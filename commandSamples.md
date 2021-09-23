@@ -15,7 +15,11 @@ python fine_tune.py --input_model_file ./models/210922_supervised --output_model
 
 # KG Dataset
 ```bash
-python pretrain_self.py --output_model_file ./models/210911_KG --data_dir ../KnowledgeGraph_materials/data_kg/baiduDatasetTranditional_GBN_wholeNode_dependency/ --feature_type random --cpu
+# pretrain
+python pretrain_self.py --output_model_file ./models/210922_KG_Semiconductor_Filtered_selfSupervised --data_dir ../KnowledgeGraph_materials/data_kg/baiduDatasetTranditional_GBN_wholeNode_dependency/ --feature_type random --n_epoch 300 --cpu
+
+# fine tune
+python fine_tune.py --input_model_file ./models/210922_KG_Semiconductor_Filtered_selfSupervised_encoder --output_model_file ./models/210922_KG_Semiconductor_Filtered_FineTuned --dataset ../KnowledgeGraph_materials/data_kg/baiduDatasetTranditional_GBN_wholeNode_dependency/doc_un_1/ --feature_type random --cpu
 
 
 ```
