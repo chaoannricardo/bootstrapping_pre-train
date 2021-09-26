@@ -148,11 +148,8 @@ if __name__ == '__main__':
     encoder = encoder.to(opt['device'])
     decoder = decoder.to(opt['device'])
 
-    try:
-        encoder, classifier = fine_tune_encoder(opt, encoder, graph_data, seeds)
-        fine_tune_decoder(opt, encoder, decoder, classifier, graph_data, seeds)
-    except RuntimeError:
-        print("Unexpected error occured terminated fine tuning process and save.")
+    encoder, classifier = fine_tune_encoder(opt, encoder, graph_data, seeds)
+    fine_tune_decoder(opt, encoder, decoder, classifier, graph_data, seeds)
 
     if opt['output_model_file']:
         print('write model file', opt['output_model_file'], '...')
